@@ -1,7 +1,7 @@
 # garblang
 
 
-garblang is a wip programming language. right now its a purely functional integer based language.
+garblang is a wip programming language implemented in rust. right now its a purely functional integer based language.
 
 example program:
 ```
@@ -25,3 +25,6 @@ garb>> fib 5
 integer: 13
 ```
 Here, `garb>>` is the prompt, and the user calls fib defined in the file with input 5. 
+
+
+I want to make this language lazy, and output sounds. But right now it's a strict calculator.
