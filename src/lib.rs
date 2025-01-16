@@ -42,7 +42,7 @@ impl<O: Op2 + 'static> Builtin for PartialBuiltinOp2<O> {
     }
 }
 #[derive(Debug, Clone)]
-pub struct Add();
+pub struct Add;
 
 impl Op2 for Add {
     fn op(&self, x: Value, y: Value) -> Value {
@@ -54,7 +54,7 @@ impl Op2 for Add {
 }
 
 #[derive(Debug, Clone)]
-pub struct Sub();
+pub struct Sub;
 
 impl Op2 for Sub {
     fn op(&self, x: Value, y: Value) -> Value {
@@ -66,7 +66,7 @@ impl Op2 for Sub {
 }
 
 #[derive(Debug, Clone)]
-pub struct Mul();
+pub struct Mul;
 
 impl Op2 for Mul {
     fn op(&self, x: Value, y: Value) -> Value {
@@ -78,7 +78,7 @@ impl Op2 for Mul {
 }
 
 #[derive(Debug, Clone)]
-pub struct Div();
+pub struct Div;
 
 impl Op2 for Div {
     fn op(&self, x: Value, y: Value) -> Value {
@@ -90,7 +90,7 @@ impl Op2 for Div {
 }
 
 #[derive(Debug)]
-pub struct If();
+pub struct If;
 
 impl Builtin for If {
     fn exec(&self, exp: &Expression, state: &mut State) -> Value {
@@ -98,7 +98,7 @@ impl Builtin for If {
         match val {
             Integer(n) if n <= 0 => Value::Builtin(Rc::new(IfCond(false))),
             Integer(_) => Value::Builtin(Rc::new(IfCond(true))),
-            Value::Exception(x) => Value::Exception(x),
+            Value::Exception(_) => Value::Builtin(Rc::new(IfCond(false))),
             z => Value::Exception(format!("if condition expected integer, got {:?}", z)),
         }
     }
@@ -121,6 +121,28 @@ impl Builtin for IfTrue {
         } else {
             exp.eval(state)
         }
+    }
+}
+
+#[derive(Debug)]
+pub struct IsException;
+impl Builtin for IsException {
+    fn exec(&self, exp: &Expression, state: &mut State) -> Value {
+        let val = exp.eval(state);
+        if let Value::Exception(_) = val {
+            return Integer(1);
+        }
+        Integer(0)
+    }
+}
+
+#[derive(Debug)]
+pub struct Prn;
+impl Builtin for Prn {
+    fn exec(&self, exp: &Expression, state: &mut State) -> Value {
+        let val = exp.eval(state);
+        println!("{}", val);
+        val
     }
 }
 
@@ -174,21 +196,23 @@ impl Default for State {
             vals: HashMap::from([
                 (
                     "add".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Add()))),
+                    Value::Builtin(Rc::new(BuiltinOp2(Add))),
                 ),
                 (
                     "sub".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Sub()))),
+                    Value::Builtin(Rc::new(BuiltinOp2(Sub))),
                 ),
                 (
                     "mul".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Mul()))),
+                    Value::Builtin(Rc::new(BuiltinOp2(Mul))),
                 ),
                 (
                     "div".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Div()))),
+                    Value::Builtin(Rc::new(BuiltinOp2(Div))),
                 ),
-                ("if".to_string(), Value::Builtin(Rc::new(If()))),
+                ("if".to_string(), Value::Builtin(Rc::new(If))),
+                ("is_exception".to_string(), Value::Builtin(Rc::new(IsException))),
+                ("prn".to_string(), Value::Builtin(Rc::new(Prn))),
             ]),
         }
     }
@@ -362,12 +386,20 @@ pub fn read_file(path: &str) -> Result<Expression, Box<dyn error::Error>> {
 
 pub fn eval_expr(x: Expression) -> Value {
     let mut s = State::new();
-    let ret = x.eval(&mut s);
-    ret
+    x.eval(&mut s)
 }
 
-pub fn repl(x: Option<Expression>) -> ! {
+pub fn initialize_state() -> Result<State, Box<dyn error::Error>> {
     let mut s = State::new();
+    let lib_files = vec!["list.garb"];
+    for file in lib_files {
+       read_file(file)?.eval(&mut s);
+    }
+    Ok(s)
+}
+
+pub fn repl(x: Option<Expression>) -> Result<(), Box<dyn error::Error>> {
+    let mut s = initialize_state()?;
     if let Some(x) = x {
         let ret = x.eval(&mut s);
         println!("{}", ret);
@@ -375,9 +407,9 @@ pub fn repl(x: Option<Expression>) -> ! {
     loop {
         let mut buffer = String::new();
         print!("garb>> ");
-        io::stdout().flush().unwrap();
+        io::stdout().flush()?;
         let stdin = io::stdin(); // We get `Stdin` here.
-        stdin.read_line(&mut buffer).unwrap();
+        stdin.read_line(&mut buffer)?;
         match lang_parser().parse(buffer) {
             Ok(expr) => {
                 println!("{}", expr.eval(&mut s))
@@ -388,3 +420,4 @@ pub fn repl(x: Option<Expression>) -> ! {
         }
     }
 }
+
