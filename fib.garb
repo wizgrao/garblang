@@ -1,0 +1,6 @@
+succ = fn x {x + 1};
+fib n =
+    if n
+        (fib (n - 1) + fib (n - 2))
+        1;
+fib 3 * succ(9)
