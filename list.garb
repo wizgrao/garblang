@@ -1,0 +1,10 @@
+init_list = -1;
+append head list arg = if arg list head;
+head list = list 0;
+tail list = list 1;
+nth i list = if i (nth (i - 1) (tail list)) (head list);
+lost = append 4 (append 8 (append 15 (append 16 (append 23 (append 42 list_init)))));
+map fn list arg = if arg (map fn (tail list)) (fn (head list));
+succ = add 1;
+ml = map succ lost;
+head ml
