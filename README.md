@@ -15,6 +15,37 @@ fib 3 * succ(9)
 This program demonstrates two ways of defining a function, one using an anonymous function and one using a more haskell like syntax.
 All functions are curried.
 
+Some basic functions and syntax sugar for lists are defined:
+```
+lost = 4 : 8 : 15 : 16 : 23 : 42 : list_init;
+print_all lost
+```
+this prints
+```
+integer: 4
+integer: 8
+integer: 15
+integer: 16
+integer: 23
+integer: 42
+integer: 0
+```
+(0 is the value of the print_all function, the rest are printed by the `prn` function).
+garb also supports the haskell-style right associated function call operator `$`.
+```
+print_all $ map (add 1) $ map (mul 2) lost
+```
+prints
+```
+integer: 9
+integer: 17
+integer: 31
+integer: 33
+integer: 47
+integer: 85
+integer: 0
+```
+
 garb can be run as a repl, just run `cargo run`. Alternatively a repl can be run after running a program. The output of the program will be printed along with a repl started with the constants defined above in scope. For example, with `fib.garb` as written above, we can run `cargo run -- fib.garb` and start a repl.
 ```
 cargo run -- fib.garb
