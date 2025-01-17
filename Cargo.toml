@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 chumsky = "0.9.3"
+rustyline = { version="15.0.0", features=["with-file-history"] }

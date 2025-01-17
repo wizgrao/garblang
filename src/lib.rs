@@ -2,11 +2,12 @@ use crate::Value::Integer;
 use chumsky::prelude::*;
 use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
-use std::io::Write;
-use std::{collections::HashMap, error, fmt, io, path::Path, rc::Rc};
+use std::{collections::HashMap, error, fmt, path::Path, rc::Rc};
 use text::TextParser;
 use std::env;
-
+use rustyline::error::ReadlineError;
+use rustyline::{DefaultEditor};
+use rustyline;
 pub trait Builtin: Debug {
     fn exec(&self, exp: &Expression, state: &mut State) -> Value;
 }
@@ -427,21 +428,43 @@ pub fn repl(x: Option<Expression>) -> Result<(), Box<dyn error::Error>> {
         let ret = x.eval(&mut s);
         println!("{}", ret);
     }
+    let mut rl = DefaultEditor::new()?;
+    let garb_root = env::var("GARBROOT")?;
+    let hist_path = Path::new(&garb_root).join("history.txt");
+    let hist_path_str = hist_path.to_str().ok_or(Box::new(GarbError("invalid history.txt path".to_string())))?.to_owned();
+    if rl.load_history(&hist_path_str).is_err() {
+        println!("No previous history.");
+    }
     loop {
-        let mut buffer = String::new();
-        print!("garb>> ");
-        io::stdout().flush()?;
-        let stdin = io::stdin(); // We get `Stdin` here.
-        stdin.read_line(&mut buffer)?;
-        match lang_parser().parse(buffer) {
-            Ok(expr) => {
-                let val = expr.eval(&mut s);
-                println!("{}", val);
-                s.vals.insert("result".to_string(), val);
-            }
-            Err(f) => {
-                println!("{:?}", f)
+        let readline = rl.readline("garb>> ");
+        match readline {
+            Ok(line) => {
+                rl.add_history_entry(line.as_str())?;
+                match lang_parser().parse(line) {
+                    Ok(expr) => {
+                        let val = expr.eval(&mut s);
+                        println!("{}", val);
+                        s.vals.insert("result".to_string(), val);
+                    }
+                    Err(f) => {
+                        println!("{:?}", f)
+                    }
+                }
+            },
+            Err(ReadlineError::Interrupted) => {
+                println!("CTRL-C");
+                break
+            },
+            Err(ReadlineError::Eof) => {
+                println!("CTRL-D");
+                break
+            },
+            Err(err) => {
+                println!("Error: {:?}", err);
+                break
             }
         }
     }
+    rl.save_history(&hist_path_str)?;
+    Ok(())
 }
