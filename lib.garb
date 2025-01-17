@@ -1,0 +1,13 @@
+append head list arg = if arg list head;
+head list = list 0;
+tail list = list 1;
+nth i list = if i (nth (i - 1) (tail list)) (head list);
+lost = 4 : 8 : 15 : 16 : 23 : 42 : list_init;
+is_empty l = is_exception (head l);
+map fn list arg = if (is_empty list) (head list) (if arg (map fn (tail list)) (fn (head list)));
+foldl op list = (elem = head list; if (is_empty list) 0 $ op elem $ foldl op $ tail list);
+sum = foldl add;
+const x y = x;
+print_all l = const 0 (if (is_empty l) 0 (prn (head l) + print_all (tail l)));
+ take n list = if n (head list : take (n - 1) $ tail list) list_init;
+head lost

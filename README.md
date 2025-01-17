@@ -30,7 +30,7 @@ integer: 23
 integer: 42
 integer: 0
 ```
-(0 is the value of the print_all function, the rest are printed by the `prn` function).
+(`0` is the value of the `print_all` function, the rest are printed by the `prn` function).
 garb also supports the haskell-style right associated function call operator `$`.
 ```
 print_all $ map (add 1) $ map (mul 2) lost
@@ -59,3 +59,6 @@ Here, `garb>>` is the prompt, and the user calls fib defined in the file with in
 
 
 I want to make this language lazy, and output sounds. But right now it's a strict calculator.
+
+## Installation
+To install, set `$GARBROOT` to be some directory in your computer and add `$GARBROOT/bin` to path. `make install` will then build garb and install the executable to `$GARBROOT/bin` and install the library files to `$GARBROOT/lib`. Building requires `cargo` to be installed. You can then run the repl with `garblang` 

@@ -3,8 +3,9 @@ use chumsky::prelude::*;
 use std::cell::RefCell;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::Write;
-use std::{collections::HashMap, error, fmt, io, rc::Rc};
+use std::{collections::HashMap, error, fmt, io, path::Path, rc::Rc};
 use text::TextParser;
+use std::env;
 
 pub trait Builtin: Debug {
     fn exec(&self, exp: &Expression, state: &mut State) -> Value;
@@ -385,6 +386,16 @@ impl fmt::Display for ChumWrapper {
 }
 
 impl error::Error for ChumWrapper {}
+#[derive(Debug, Clone)]
+struct GarbError(String);
+
+impl fmt::Display for GarbError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "invalid error {:?}", self.0)
+    }
+}
+
+impl error::Error for GarbError {}
 
 pub fn read_file(path: &str) -> Result<Expression, Box<dyn error::Error>> {
     let src = std::fs::read_to_string(path)?;
@@ -401,9 +412,11 @@ pub fn eval_expr(x: Expression) -> Value {
 
 pub fn initialize_state() -> Result<State, Box<dyn error::Error>> {
     let mut s = State::new();
-    let lib_files = vec!["list.garb"];
+    let lib_files = vec!["lib.garb"];
+    let garb_root = env::var("GARBROOT")?;
     for file in lib_files {
-        read_file(file)?.eval(&mut s);
+        let lib_path = Path::new(&garb_root).join("lib").join(file);
+        read_file(lib_path.to_str().ok_or(Box::new(GarbError("invalid library :((".to_string())))?)?.eval(&mut s);
     }
     Ok(s)
 }
