@@ -194,24 +194,15 @@ impl Default for State {
     fn default() -> Self {
         Self {
             vals: HashMap::from([
-                (
-                    "add".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Add))),
-                ),
-                (
-                    "sub".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Sub))),
-                ),
-                (
-                    "mul".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Mul))),
-                ),
-                (
-                    "div".to_string(),
-                    Value::Builtin(Rc::new(BuiltinOp2(Div))),
-                ),
+                ("add".to_string(), Value::Builtin(Rc::new(BuiltinOp2(Add)))),
+                ("sub".to_string(), Value::Builtin(Rc::new(BuiltinOp2(Sub)))),
+                ("mul".to_string(), Value::Builtin(Rc::new(BuiltinOp2(Mul)))),
+                ("div".to_string(), Value::Builtin(Rc::new(BuiltinOp2(Div)))),
                 ("if".to_string(), Value::Builtin(Rc::new(If))),
-                ("is_exception".to_string(), Value::Builtin(Rc::new(IsException))),
+                (
+                    "is_exception".to_string(),
+                    Value::Builtin(Rc::new(IsException)),
+                ),
                 ("prn".to_string(), Value::Builtin(Rc::new(Prn))),
             ]),
         }
@@ -288,6 +279,31 @@ pub fn lang_parser() -> impl Parser<char, Expression, Error = Simple<char>> {
         let left_fn = ident.or(bounded_expr.clone());
 
         let atom = bounded_expr.clone().or(num).or(ident);
+
+        let fn_call = left_fn
+            .padded()
+            .then(atom.clone().repeated())
+            .foldl(|x: Expression, y: Expression| Expression::Call(Rc::new(x), Rc::new(y)));
+
+        let fn_def = text::keyword("fn")
+            .ignore_then(text::ident().padded())
+            .then(expr.clone().padded().delimited_by(just("{"), just("}")))
+            .map(|(var, x): (String, Expression)| Expression::Fn(var, Rc::new(x)));
+
+        let let_exp = text::ident()
+            .then(text::ident().padded().repeated())
+            .then_ignore(just('=').padded())
+            .then(expr.clone().padded())
+            .map(|((var, args), assign)| (args, (var, assign)))
+            .foldr(|arg, (var, assign)| (var, Expression::Fn(arg, assign.into())))
+            .then_ignore(just(';').padded())
+            .then(expr.clone())
+            .map(|((var, assig), then): ((String, Expression), Expression)| {
+                Expression::Definition(var, assig.into(), then.into())
+            });
+
+        let bruh = choice((fn_def, let_exp, fn_call, atom.clone()));
+
         let plus = just("+").padded().to((|l: Expression, r: Expression| {
             Expression::Call(
                 Expression::Call(Expression::Ident("add".to_string()).into(), l.into()).into(),
@@ -316,33 +332,27 @@ pub fn lang_parser() -> impl Parser<char, Expression, Error = Simple<char>> {
             )
         }) as fn(Expression, Expression) -> Expression);
 
-        let fn_call = left_fn
-            .padded()
-            .then(atom.clone().repeated())
-            .foldl(|x: Expression, y: Expression| Expression::Call(Rc::new(x), Rc::new(y)));
+        let col = just(":").padded().to((|l: Expression, r: Expression| {
+            Expression::Call(
+                Expression::Call(Expression::Ident("append".to_string()).into(), l.into()).into(),
+                r.into(),
+            )
+        }) as fn(Expression, Expression) -> Expression);
 
-        let fn_def = text::keyword("fn")
-            .ignore_then(text::ident().padded())
-            .then(expr.clone().padded().delimited_by(just("{"), just("}")))
-            .map(|(var, x): (String, Expression)| Expression::Fn(var, Rc::new(x)));
+        let dollar = just("$").padded().to((|l: Expression, r: Expression| {
+            Expression::Call(l.into(), r.into())
+        }) as fn(Expression, Expression) -> Expression);
 
-        let let_exp = text::ident()
-            .then(text::ident().padded().repeated())
-            .then_ignore(just('=').padded())
-            .then(expr.clone().padded())
-            .map(|((var, args), assign)| (args, (var, assign)))
-            .foldr(|arg, (var, assign)| (var, Expression::Fn(arg, assign.into())))
-            .then_ignore(just(';').padded())
-            .then(expr.clone())
-            .map(|((var, assig), then): ((String, Expression), Expression)| {
-                Expression::Definition(var, assig.into(), then.into())
-            });
-
-        let bruh = choice((fn_def, let_exp, fn_call, atom.clone()));
-
-        let mul = bruh
+        let append = bruh
             .clone()
-            .then(mul.or(div).then(bruh.padded()).repeated())
+            .then(col.or(dollar))
+            .repeated()
+            .then(bruh)
+            .foldr(|(expr2, op), expr| op(expr2, expr));
+
+        let mul = append
+            .clone()
+            .then(mul.or(div).then(append.padded()).repeated())
             .foldl(|expr, (op, expr2)| op(expr, expr2));
 
         let add = mul
@@ -393,7 +403,7 @@ pub fn initialize_state() -> Result<State, Box<dyn error::Error>> {
     let mut s = State::new();
     let lib_files = vec!["list.garb"];
     for file in lib_files {
-       read_file(file)?.eval(&mut s);
+        read_file(file)?.eval(&mut s);
     }
     Ok(s)
 }
@@ -412,7 +422,9 @@ pub fn repl(x: Option<Expression>) -> Result<(), Box<dyn error::Error>> {
         stdin.read_line(&mut buffer)?;
         match lang_parser().parse(buffer) {
             Ok(expr) => {
-                println!("{}", expr.eval(&mut s))
+                let val = expr.eval(&mut s);
+                println!("{}", val);
+                s.vals.insert("result".to_string(), val);
             }
             Err(f) => {
                 println!("{:?}", f)
@@ -420,4 +432,3 @@ pub fn repl(x: Option<Expression>) -> Result<(), Box<dyn error::Error>> {
         }
     }
 }
-

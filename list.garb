@@ -2,7 +2,7 @@ append head list arg = if arg list head;
 head list = list 0;
 tail list = list 1;
 nth i list = if i (nth (i - 1) (tail list)) (head list);
-lost = append 4 (append 8 (append 15 (append 16 (append 23 (append 42 list_init)))));
+lost = 4 : 8 : 15 : 16 : 23 : 42 : list_init;
 is_empty l = is_exception (head l);
 map fn list arg = if (is_empty list) (head list) (if arg (map fn (tail list)) (fn (head list)));
 sum list = (elem = head list; if (is_empty list) 0 (elem + sum (tail list)));
