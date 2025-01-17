@@ -5,9 +5,10 @@ nth i list = if i (nth (i - 1) (tail list)) (head list);
 lost = 4 : 8 : 15 : 16 : 23 : 42 : list_init;
 is_empty l = is_exception (head l);
 map fn list arg = if (is_empty list) (head list) (if arg (map fn (tail list)) (fn (head list)));
-foldl op list = (elem = head list; if (is_empty list) 0 $ op elem $ foldl op $ tail list);
-sum = foldl add;
+foldr op elem list = if (is_empty list) elem $ op (head list) $ foldr op elem (tail list);
+foldl op elem list = if (is_empty list) elem $ foldl op (op elem $ head list) $ tail list;
+sum = foldr add 0;
 const x y = x;
 print_all l = const 0 (if (is_empty l) 0 (prn (head l) + print_all (tail l)));
- take n list = if n (head list : take (n - 1) $ tail list) list_init;
+take n list = if n (head list : take (n - 1) $ tail list) list_init;
 head lost
